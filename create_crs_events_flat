@@ -1,0 +1,198 @@
+--------------------------------------------------
+--NEW MAIN QUERY TO CREATE FLAT EVENTS TABLE
+--------------------------------------------------
+
+--CRS. Author: Vladyslav Makarov. Create Daily flat table
+BEGIN
+  --DECLARE start_date DATE DEFAULT DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY); -- << UNCOMMENT IF NEEDED
+  --DECLARE end_date DATE DEFAULT DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY); -- << UNCOMMENT IF NEEDED
+  DECLARE start_date DATE DEFAULT '2023-10-01'; -- << EDIT HERE
+  DECLARE end_date DATE DEFAULT '2023-11-20'; -- << EDIT HERE
+
+  CREATE OR REPLACE TABLE `social-boost-website.crs_data.crs_events_flat` -- << EDIT HERE
+    PARTITION BY date
+    OPTIONS(
+      description="Daily flat table FROM 2023-10-01" -- << EDIT HERE
+  ) AS
+
+  --INSERT INTO `social-boost-website.crs_data.crs_events_flat` -- << EDIT HERE
+
+  WITH events_data as (
+    SELECT DISTINCT
+        parse_date('%Y%m%d', event_date) as date,
+        user_pseudo_id,
+        (select value.string_value from unnest(event_params) where REGEXP_CONTAINS(key, 'variant_id|experiment_variant_new|exp_variant_string')) as variant_id,
+        event_timestamp,
+        timestamp_micros(event_timestamp) as event_timestamp_parsed,
+        event_name,
+        ROW_NUMBER() OVER (partition by user_pseudo_id,event_name,(select value.int_value from unnest(event_params) where key = 'ga_session_id') order by event_timestamp) as event_count_by_session,
+        ROW_NUMBER() OVER (partition by user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id') order by event_timestamp) as user_sequence_by_session,
+        device.category as device_category_all,
+        case when device.category = 'mobile' then 'Mobile' else 'Desktop' end as device_category,
+        device.mobile_brand_name as device_mobile_brand_name,
+        device.mobile_model_name as device_mobile_model_name,
+        device.mobile_marketing_name as device_mobile_marketing_name,
+        device.operating_system as device_operating_system,
+        device.operating_system_version as device_operating_system_version,
+        device.language as device_language,
+        device.web_info.browser as browser,
+        device.web_info.browser_version as browser_version,
+        device.web_info.hostname as hostname,
+        geo.city as geo_city,
+        geo.country as geo_country,
+        geo.continent as geo_continent,
+        geo.region as geo_region,
+        geo.sub_continent as sub_continent,
+        geo.metro as metro,
+        traffic_source.source as user_source,
+        traffic_source.medium as user_medium,
+        traffic_source.name as user_campaign,
+        concat (traffic_source.source, ' / ', case when traffic_source.medium is not null then traffic_source.medium else '(none)' end) as user_source_medium,
+        case
+          when (select value.int_value from unnest(event_params) where key = 'ga_session_number') = 1 then 'New Visitor'
+          when (select value.int_value from unnest(event_params) where key = 'ga_session_number') > 1 then 'Returning Visitor'
+        else null end as user_type,
+        stream_id,
+        platform,
+        (select value.string_value from unnest(event_params) where key = 'campaign') as session_campaign,
+        (select value.string_value from unnest(event_params) where key = 'source') as session_source,
+        (select value.string_value from unnest(event_params) where key = 'medium') as session_medium,
+        concat ((select value.string_value from unnest(event_params) where key = 'source'), ' / ', case when (select value.string_value from unnest(event_params) where key = 'medium') is not null then (select value.string_value from unnest(event_params) where key = 'medium') else '(none)' end) as session_source_medium,
+        (select value.string_value from unnest(event_params) where key = 'gclid') as session_gclid,  
+        (select value.string_value from unnest(event_params) where key = 'content_group') as content_group,
+        (select value.string_value from unnest(event_params) where key = 'page_location') as page_location,
+        split(split((select value.string_value from unnest(event_params) where key = 'page_location'), '://')[safe_ordinal(2)],'?')[safe_ordinal(1)] as page_path,
+        (select value.string_value from unnest(event_params) where key = 'page_referrer') as page_referrer,
+        split(split((select value.string_value from unnest(event_params) where key = 'page_referrer'), '://')[safe_ordinal(2)],'?')[safe_ordinal(1)] as page_referrer_path,
+        (select value.string_value from unnest(event_params) where key = 'page_title') as page_title,
+        case when (select value.int_value from unnest(event_params) where event_name = 'page_view' and key = 'entrances') = 1 then (select value.string_value from unnest(event_params) where event_name = 'page_view' and key = 'page_location') end as landing_page,
+        split(split(case when (select value.int_value from unnest(event_params) where event_name = 'page_view' and key = 'entrances') = 1 then (select value.string_value from unnest(event_params) where event_name = 'page_view' and key = 'page_location') end, '://')[safe_ordinal(2)],'?')[safe_ordinal(1)] as landing_page_path,
+        case 
+          when (select value.string_value from unnest(event_params) where key = 'element_description') is not null 
+            then (select value.string_value from unnest(event_params) where key = 'element_description')
+          when (select value.int_value from unnest(event_params) where key = 'element_description') is not null 
+            then CAST((select value.int_value from unnest(event_params) where key = 'element_description') AS STRING)
+        end as element_description,
+        case 
+          when (select value.string_value from unnest(event_params) where key = 'element_location') is not null 
+            then (select value.string_value from unnest(event_params) where key = 'element_location')
+          when (select value.int_value from unnest(event_params) where key = 'element_location') is not null 
+            then CAST((select value.int_value from unnest(event_params) where key = 'element_location') AS STRING)
+        end as element_location,
+        case 
+          when (select value.string_value from unnest(event_params) where key = 'element_location2') is not null 
+            then (select value.string_value from unnest(event_params) where key = 'element_location2')
+          when (select value.int_value from unnest(event_params) where key = 'element_location2') is not null 
+            then CAST((select value.int_value from unnest(event_params) where key = 'element_location2') AS STRING)
+        end as element_location2,
+        case 
+          when (select value.string_value from unnest(event_params) where key = 'element_location3') is not null 
+            then (select value.string_value from unnest(event_params) where key = 'element_location3')
+          when (select value.int_value from unnest(event_params) where key = 'element_location3') is not null 
+            then CAST((select value.int_value from unnest(event_params) where key = 'element_location3') AS STRING)
+        end as element_location3,
+        case 
+          when (select value.string_value from unnest(event_params) where key = 'element_type') is not null 
+            then (select value.string_value from unnest(event_params) where key = 'element_type')
+          when (select value.int_value from unnest(event_params) where key = 'element_type') is not null 
+            then CAST((select value.int_value from unnest(event_params) where key = 'element_type') AS STRING)
+        end as element_type,
+        (select value.int_value from unnest(event_params) where key = 'percent_scrolled') as percent_scrolled,
+        (select value.string_value from unnest(event_params) where key = 'entrances') as entrances,
+        (select value.int_value from unnest(event_params) where key = 'ga_session_number') as ga_session_number,
+        (select value.int_value from unnest(event_params) where key = 'ga_session_id') as ga_session_id,
+        case 
+          when (select value.string_value from unnest(event_params) where key = 'session_engaged') is not null 
+            then (select value.string_value from unnest(event_params) where key = 'session_engaged')
+          when (select value.int_value from unnest(event_params) where key = 'session_engaged') is not null 
+            then CAST((select value.int_value from unnest(event_params) where key = 'session_engaged') AS STRING)
+        end as session_engaged,
+        case 
+          when (select value.string_value from unnest(event_params) where key = 'engaged_session_event') is not null 
+            then (select value.string_value from unnest(event_params) where key = 'engaged_session_event')
+          when (select value.int_value from unnest(event_params) where key = 'engaged_session_event') is not null 
+            then CAST((select value.int_value from unnest(event_params) where key = 'engaged_session_event') AS STRING)
+        end as engaged_session_event,
+        (select value.int_value from unnest(event_params) where key = 'engagement_time_msec') as engagement_time_msec,
+        (select value.string_value from unnest(event_params) where key = 'ecomm_pagetype') as ecomm_pagetype,
+        (select value.string_value from unnest(event_params) where key = 'ecomm_prodid') as ecomm_prodid,
+        (select value.string_value from unnest(event_params) where key = 'ecomm_totalvalue') as ecomm_totalvalue,
+        (select value.string_value from unnest(event_params) where key = 'coupon') as coupon,
+        (select value.int_value from unnest(event_params) where key = 'tax') as tax,
+        (select value.double_value from unnest(event_params) where key = 'value') as event_value,
+        (select value.string_value from unnest(event_params) where key = 'shipping') as shipping,
+        (select value.string_value from unnest(event_params) where key = 'shipping_tier') as shipping_tier,
+        (select value.string_value from unnest(event_params) where key = 'payment_type') as payment_type,
+        (select value.string_value from unnest(event_params) where key = 'currency') as currency,
+        concat(user_pseudo_id,event_timestamp,event_name) as join_key,
+    FROM `social-boost-website.analytics_262867194.events_*` -- << EDIT HERE
+    WHERE _table_suffix BETWEEN FORMAT_DATE("%Y%m%d", start_date) AND FORMAT_DATE("%Y%m%d",end_date)
+  ),
+
+  ecommerce_data as (
+    WITH ecommerce_data_temp as (
+      SELECT
+        user_pseudo_id,
+        event_timestamp,
+        event_name,
+        ecommerce.transaction_id,
+        ecommerce.total_item_quantity,
+        ecommerce.unique_items,
+        ecommerce.purchase_revenue_in_usd,
+        ecommerce.purchase_revenue,
+        ecommerce.refund_value_in_usd,
+        ecommerce.refund_value,
+        ecommerce.shipping_value_in_usd,
+        ecommerce.shipping_value,
+        ecommerce.tax_value_in_usd,
+        ecommerce.tax_value,
+        ARRAY_AGG(
+          STRUCT(
+            items.item_id,
+            items.item_name,
+            items.item_brand,
+            items.item_variant,
+            items.item_category,
+            items.price_in_usd,
+            items.price,
+            items.quantity,
+            items.item_revenue_in_usd as items_revenue_in_usd,
+            items.item_revenue as items_revenue,
+            items.item_refund_in_usd,
+            items.item_refund,
+            items.coupon
+          )
+        ) AS items
+      FROM `social-boost-website.analytics_262867194.events_*`, -- << EDIT HERE
+        unnest(items) as items
+      WHERE _table_suffix BETWEEN FORMAT_DATE("%Y%m%d", start_date) AND FORMAT_DATE("%Y%m%d", end_date)
+      group by 1,2,3,4,5,6,7,8,9,10,11,12,13,14
+    )
+    SELECT
+      concat(user_pseudo_id,event_timestamp,event_name) as join_key,
+      *
+      EXCEPT (user_pseudo_id,event_timestamp,event_name)
+    FROM ecommerce_data_temp  
+  )
+
+  SELECT
+    *
+    EXCEPT (join_key)
+  FROM events_data
+  LEFT JOIN ecommerce_data USING (join_key);
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
