@@ -193,7 +193,7 @@ BEGIN
               SELECT DISTINCT
                   user_pseudo_id as users_step_"""|| i ||""",
                   concat(user_pseudo_id,ga_session_id) as join_key,
-              FROM `%t`, unnest(items) as items
+              FROM `%t` left join unnest(items) as items
               WHERE %t
             )
           """,destination_table, step_conditions[i]
