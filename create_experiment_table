@@ -15,7 +15,6 @@ BEGIN
 --------------------------------------------------------------------------------------------------
 -- 5. Table description needed if you want to CREATE table
   DECLARE table_description STRING DEFAULT 'NatPat: BuzzPatch - Exp: AOV hypothesis';
-
 --------------------------------------------------------------------------------------------------
 -- 6. ENTER START and END date.
   --DECLARE start_date DATE DEFAULT DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY);
@@ -36,8 +35,6 @@ BEGIN
     "event_name = 'add_payment_info'",
     "event_name = 'purchase'"
   ];
-
-
 -------------------------------------------------
 -------------------------------------------------
 -- << THE QUERY BELOW DOES NOT RECUIRE EDITING >>
