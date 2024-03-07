@@ -23,18 +23,15 @@ BEGIN
   --DECLARE end_date DATE DEFAULT '2024-02-20'; -- IF Exp running THEN -2 days from today
 --------------------------------------------------------------------------------------------------
 -- 7. CLOSED FUNNEL.
-  DECLARE use_closed_funnel BOOL DEFAULT FALSE; -- << ENTER 'TRUE' or 'FALSE'
+  DECLARE use_closed_funnel BOOL DEFAULT TRUE; -- << ENTER 'TRUE' or 'FALSE'
   -- SET STEP CONDITION
   DECLARE step_conditions ARRAY<STRING> DEFAULT
-  [ "event_name = 'view_item'",
-    "event_name = 'add_to_cart'",
-    "REGEXP_CONTAINS(event_name, 'cart_sb_view|addedtobag_view')",
-    "REGEXP_CONTAINS(page_location, '/basket')",
-    "REGEXP_CONTAINS(page_location, '/checkout')",
-    "event_name = 'add_shipping_info'",
-    "event_name = 'add_payment_info'",
-    "event_name = 'purchase'"
+  [ "event_name = 'proceed_to_checkout' AND content_group = 'Buzz Patch'",
+    "event_name = 'begin_checkout' AND REGEXP_CONTAINS(items.item_name, 'Mosquito Patches for Kids')",
+    "event_name = 'purchase' AND NOT transaction_id = '(not set)' AND REGEXP_CONTAINS(items.item_name, 'Mosquito Patches for Kids')"
   ];
+
+
 -------------------------------------------------
 -------------------------------------------------
 -- << THE QUERY BELOW DOES NOT RECUIRE EDITING >>
@@ -196,7 +193,7 @@ BEGIN
               SELECT DISTINCT
                   user_pseudo_id as users_step_"""|| i ||""",
                   concat(user_pseudo_id,ga_session_id) as join_key,
-              FROM `%t`
+              FROM `%t`, unnest(items) as items
               WHERE %t
             )
           """,destination_table, step_conditions[i]
