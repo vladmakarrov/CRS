@@ -1,7 +1,3 @@
---------------------------------------------------
---NEW MAIN QUERY TO CREATE EXPERIMENTS TABLE
---------------------------------------------------
-
 --CRS. Author: Vladyslav Makarov. Experiment Table
 BEGIN
 --------------------------------------------------------------------------------------------------
@@ -9,23 +5,23 @@ BEGIN
   DECLARE table_action STRING DEFAULT 'create'; -- << ENTER 'create' or 'insert' or 'view' (if you want to view results only)
 --------------------------------------------------------------------------------------------------
 -- 2. FROM Table
-  DECLARE from_table STRING DEFAULT 'social-boost-website.crs_data.crs_events_flat';
+  DECLARE from_table STRING DEFAULT 'arcane-mission-390005.crs_data.crs_events_flat';
 --------------------------------------------------------------------------------------------------
 -- 3. Destination Table
-  DECLARE destination_table STRING DEFAULT 'social-boost-website.crs_experiments_data.100440869';
+  DECLARE destination_table STRING DEFAULT 'arcane-mission-390005.crs_experiments_data.qpDk4XUoeQ';
 --------------------------------------------------------------------------------------------------
 -- 4. ENTER Experiment ID (Only experiment ID, without variation ID)
-  DECLARE experiment_id STRING DEFAULT '100440869';
+  DECLARE experiment_id STRING DEFAULT 'qpDk4XUoeQ';
 --------------------------------------------------------------------------------------------------
 -- 5. Table description needed if you want to CREATE table
-  DECLARE table_description STRING DEFAULT 'SocialBoost - Exp: Pricing page improvements';
+  DECLARE table_description STRING DEFAULT 'NatPat: BuzzPatch - Exp: AOV hypothesis';
 
 --------------------------------------------------------------------------------------------------
 -- 6. ENTER START and END date.
   --DECLARE start_date DATE DEFAULT DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY);
-  --DECLARE end_date DATE DEFAULT DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY); 
-  DECLARE start_date DATE DEFAULT '2024-02-17';
-  DECLARE end_date DATE DEFAULT '2024-02-20'; -- IF Exp running THEN -2 days from today
+  DECLARE start_date DATE DEFAULT '2024-02-29';
+  DECLARE end_date DATE DEFAULT DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY); 
+  --DECLARE end_date DATE DEFAULT '2024-02-20'; -- IF Exp running THEN -2 days from today
 --------------------------------------------------------------------------------------------------
 -- 7. CLOSED FUNNEL.
   DECLARE use_closed_funnel BOOL DEFAULT FALSE; -- << ENTER 'TRUE' or 'FALSE'
@@ -296,21 +292,3 @@ BEGIN
   select query_view;
   select query_closed_funnel;
 END
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
