@@ -1,0 +1,343 @@
+--CRS. Author: Vladyslav Makarov. Experiment Table. Specially for the project Ayela - added additional Filters in Query
+BEGIN
+--------------------------------------------------------------------------------------------------
+-- 1. ENTER table action. You want to CREATE TABLE or INTERT INTO TABLE ("insert" - needed for "Scheduled queries")
+  DECLARE table_action STRING DEFAULT 'create'; -- << ENTER 'create' or 'insert' or 'view' (if you want to view results only)
+--------------------------------------------------------------------------------------------------
+-- 2. FROM Table
+  DECLARE from_table STRING DEFAULT 'carbide-anvil-400113.crs_data.crs_events_flat';
+--------------------------------------------------------------------------------------------------
+-- 3. Destination Table
+  DECLARE destination_table STRING DEFAULT 'carbide-anvil-400113.crs_experiment_data.vC5KMpjfsd';
+--------------------------------------------------------------------------------------------------
+-- 4. ENTER Experiment ID (Only experiment ID, without variation ID)
+  DECLARE experiment_id STRING DEFAULT 'vC5KMpjfsd';
+--------------------------------------------------------------------------------------------------
+-- 5. Table description needed if you want to CREATE table
+  DECLARE table_description STRING DEFAULT 'Aeyla - Exp: 3 + 1 Free';
+--------------------------------------------------------------------------------------------------
+-- 6. ENTER START and END date.
+  --DECLARE start_date DATE DEFAULT DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY);
+  DECLARE start_date DATE DEFAULT '2024-05-08';
+  DECLARE end_date DATE DEFAULT DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY); 
+  --DECLARE end_date DATE DEFAULT '2024-05-15'; -- IF Exp running THEN -2 days from today
+--------------------------------------------------------------------------------------------------
+-- 7. CLOSED FUNNEL.
+  DECLARE use_closed_funnel BOOL DEFAULT FALSE; -- << ENTER 'TRUE' or 'FALSE'
+  -- SET STEP CONDITION
+  DECLARE step_conditions ARRAY<STRING> DEFAULT
+  [ "event_name = 'proceed_to_checkout' AND content_group = 'Buzz Patch'",
+    "event_name = 'begin_checkout' AND REGEXP_CONTAINS(items.item_name, 'Mosquito Patches for Kids')",
+    "event_name = 'purchase' AND NOT transaction_id = '(not set)' AND REGEXP_CONTAINS(items.item_name, 'Mosquito Patches for Kids')"
+  ];
+
+
+-------------------------------------------------
+-------------------------------------------------
+-- << THE QUERY BELOW DOES NOT RECUIRE EDITING >>
+  DECLARE query_create STRING;
+  DECLARE query_insert STRING;
+  DECLARE query_view STRING;
+  DECLARE i INT64 DEFAULT 0;
+  DECLARE query_closed_funnel STRING;
+
+  SET query_create = FORMAT(
+    """
+    CREATE OR REPLACE TABLE `%t`
+      PARTITION BY date
+      OPTIONS(
+        description='%t'
+    ) AS
+
+    WITH
+      exp_data AS (
+        SELECT DISTINCT 
+          user_pseudo_id,
+          variant_id
+        FROM
+          `%t` 
+        WHERE
+          REGEXP_CONTAINS (variant_id,'%t')
+          AND date between '%t' and '%t'
+      ),
+
+      filter_data AS (
+        SELECT DISTINCT 
+          user_pseudo_id,
+          device_category,
+          geo_country, 
+          browser,
+          user_type,
+          user_source_medium
+        FROM
+          `%t`
+        WHERE
+          REGEXP_CONTAINS (event_name,'session_start|page_view')
+          AND date between '%t' and '%t'
+      ), 
+
+      events_data AS (
+        SELECT
+          *
+        FROM
+          `%t` 
+        WHERE date between '%t' and '%t'
+          AND NOT REGEXP_CONTAINS(event_name, 'experiment_impression|new_experiment_start|experience_impression|version_initiation')
+      )
+
+    SELECT
+        exp_data.user_pseudo_id as user_pseudo_id,
+        exp_data.variant_id as experiment_variation,
+        filter_data.device_category,
+        filter_data.geo_country, 
+        filter_data.browser,
+        filter_data.user_type,
+        filter_data.user_source_medium,
+        events_data.*
+        EXCEPT (user_pseudo_id,variant_id,user_type, browser, geo_country, device_category,user_source_medium)
+    FROM
+      exp_data
+    LEFT JOIN filter_data USING (user_pseudo_id)
+    LEFT JOIN events_data USING (user_pseudo_id)
+    """,destination_table,table_description,from_table,experiment_id,start_date,end_date,from_table,start_date,end_date,from_table,start_date,end_date
+  );
+
+  SET query_insert = FORMAT(
+    """
+    INSERT INTO `%t`
+      
+    WITH
+      exp_data AS (
+        SELECT DISTINCT 
+          user_pseudo_id,
+          variant_id
+        FROM
+          `%t` 
+        WHERE
+          REGEXP_CONTAINS (variant_id,'%t')
+          AND date between '%t' and '%t'
+      ),
+
+      filter_data AS (
+        SELECT DISTINCT 
+          user_pseudo_id,
+          device_category,
+          geo_country, 
+          browser,
+          user_type,
+          user_source_medium
+        FROM
+          `%t`
+        WHERE
+          REGEXP_CONTAINS (event_name,'session_start|page_view')
+          AND date between '%t' and '%t'
+      ), 
+
+      events_data AS (
+        SELECT
+          *
+        FROM
+          `%t` 
+        WHERE date between '%t' and '%t'
+          AND NOT REGEXP_CONTAINS(event_name, 'experiment_impression|new_experiment_start|experience_impression|version_initiation')
+      )
+
+    SELECT
+        exp_data.user_pseudo_id as user_pseudo_id,
+        exp_data.variant_id as experiment_variation,
+        filter_data.device_category,
+        filter_data.geo_country, 
+        filter_data.browser,
+        filter_data.user_type,
+        filter_data.user_source_medium,
+        events_data.*
+        EXCEPT (user_pseudo_id,variant_id,user_type, browser, geo_country, device_category,user_source_medium)
+    FROM
+      exp_data
+    LEFT JOIN filter_data USING (user_pseudo_id)
+    LEFT JOIN events_data USING (user_pseudo_id)
+    """,destination_table,from_table,experiment_id,start_date,end_date,from_table,start_date,end_date,from_table,start_date,end_date
+  );
+
+  SET query_view = FORMAT(
+    """      
+    WITH
+      exp_data AS (
+        SELECT DISTINCT 
+          user_pseudo_id,
+          variant_id
+        FROM
+          `%t` 
+        WHERE
+          REGEXP_CONTAINS (variant_id,'%t')
+          AND date between '%t' and '%t'
+      ),
+
+      filter_data AS (
+        SELECT DISTINCT 
+          user_pseudo_id,
+          device_category,
+          geo_country, 
+          browser,
+          user_type,
+          user_source_medium
+        FROM
+          `%t`
+        WHERE
+          REGEXP_CONTAINS (event_name,'session_start|page_view')
+          AND date between '%t' and '%t'
+      ), 
+
+      events_data AS (
+        SELECT
+          *
+        FROM
+          `%t` 
+        WHERE date between '%t' and '%t'
+          AND NOT REGEXP_CONTAINS(event_name, 'experiment_impression|new_experiment_start|experience_impression|version_initiation')
+      )
+
+    SELECT
+        exp_data.user_pseudo_id as user_pseudo_id,
+        exp_data.variant_id as experiment_variation,
+        filter_data.device_category,
+        filter_data.geo_country, 
+        filter_data.browser,
+        filter_data.user_type,
+        filter_data.user_source_medium,
+        events_data.*
+        EXCEPT (user_pseudo_id,variant_id,user_type, browser, geo_country, device_category,user_source_medium)
+    FROM
+      exp_data
+    LEFT JOIN filter_data USING (user_pseudo_id)
+    LEFT JOIN events_data USING (user_pseudo_id)
+    """,from_table,experiment_id,start_date,end_date,from_table,start_date,end_date,from_table,start_date,end_date
+  );
+
+  SET i = 0;
+  SET query_closed_funnel = FORMAT (
+    """
+      CREATE OR REPLACE TABLE `%t_closed`
+        PARTITION BY date
+        OPTIONS(
+          description='%t'
+      ) AS
+
+      WITH 
+        users_in_exp as (
+          SELECT DISTINCT
+              date, 
+              experiment_variation,
+              device_category,
+              geo_country,
+              browser,
+              user_type,
+              user_source_medium,
+              user_pseudo_id as total_users,
+              concat(user_pseudo_id,ga_session_id) as join_key,
+          FROM `%t`
+        ),
+    """,destination_table,table_description,destination_table
+  );
+  REPEAT
+    IF NOT REGEXP_CONTAINS(step_conditions[i], 'purchase') THEN
+      SET query_closed_funnel = CONCAT(query_closed_funnel,
+        FORMAT(
+          """
+            table_step"""||i||""" as (
+              SELECT DISTINCT
+                  user_pseudo_id as users_step_"""|| i ||""",
+                  concat(user_pseudo_id,ga_session_id) as join_key,
+              FROM `%t` left join unnest(items) as items
+              WHERE %t
+            )
+          """,destination_table, step_conditions[i]
+        ),
+        IF(i < ARRAY_LENGTH(step_conditions)-1,",","")     
+      );
+    ELSEIF REGEXP_CONTAINS(step_conditions[i], 'purchase') THEN
+      SET query_closed_funnel = CONCAT(query_closed_funnel,
+        FORMAT(
+          """
+            table_step"""||i||""" as (
+              SELECT
+                concat(user_pseudo_id,ga_session_id) as join_key,
+                user_pseudo_id as purchasers,
+                transaction_id,
+                purchase_revenue,
+                purchase_revenue_in_usd,
+                total_item_quantity,
+                ARRAY_AGG(
+                  STRUCT(
+                    items.item_id,
+                    items.item_name,
+                    items.item_brand,
+                    items.item_variant,
+                    items.item_category,
+                    items.price_in_usd,
+                    items.price,
+                    items.quantity,
+                    items.items_revenue_in_usd,
+                    items.items_revenue,
+                    items.item_refund_in_usd,
+                    items.item_refund,
+                    items.coupon
+                  )
+                ) AS items
+              FROM `%t`, unnest(items) as items
+              WHERE %t
+              GROUP BY 1,2,3,4,5,6
+            )
+          """,destination_table, step_conditions[i]
+        ),
+        IF(i < ARRAY_LENGTH(step_conditions)-1,",","")     
+      );
+    END IF;
+    SET i = i + 1;
+    UNTIL i >= ARRAY_LENGTH(step_conditions)
+  END REPEAT;
+
+  SET query_closed_funnel = CONCAT(query_closed_funnel,
+    FORMAT(
+      """
+        SELECT
+          *
+        EXCEPT (join_key)
+        FROM users_in_exp
+      """
+    )
+  ); 
+  SET i = 0;
+  REPEAT
+    IF i = 0 THEN
+      SET query_closed_funnel = CONCAT(query_closed_funnel,
+        "LEFT JOIN table_step"||i||" USING (join_key)\n"
+      );
+    ELSEIF i != 0 THEN 
+      SET query_closed_funnel = CONCAT(query_closed_funnel,
+        "LEFT JOIN table_step"||i||" ON table_step"||(i-1)||".join_key = table_step"||i||".join_key\n"
+      );
+    END IF;
+    SET i = i + 1;
+    UNTIL i >= ARRAY_LENGTH(step_conditions)
+  END REPEAT;
+
+  EXECUTE IMMEDIATE 
+    CASE 
+      WHEN table_action = 'create' THEN query_create
+      WHEN table_action = 'insert' THEN query_insert
+      WHEN table_action = 'view' THEN query_view
+      ELSE "select 'main table of experiment not created'"
+    END
+  ;
+  EXECUTE IMMEDIATE 
+  CASE 
+    WHEN use_closed_funnel = TRUE THEN query_closed_funnel
+    ELSE "select 'closed_funnel table not created'"
+  END
+  ;
+  select query_create;
+  select query_insert;
+  select query_view;
+  select query_closed_funnel;
+END
