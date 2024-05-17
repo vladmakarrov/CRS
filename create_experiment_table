@@ -77,10 +77,7 @@ BEGIN
         EXCEPT (user_pseudo_id,variant_id)
     FROM
       exp_data
-    LEFT JOIN
-      events_data
-    USING 
-      (user_pseudo_id)
+    LEFT JOIN events_data USING (user_pseudo_id)
     """,destination_table,table_description,from_table,experiment_id,start_date,end_date,from_table,start_date,end_date
   );
 
@@ -116,10 +113,7 @@ BEGIN
         EXCEPT (user_pseudo_id,variant_id)
     FROM
       exp_data
-    LEFT JOIN
-      events_data
-    USING 
-      (user_pseudo_id)
+    LEFT JOIN events_data USING (user_pseudo_id)
     """,destination_table,from_table,experiment_id,start_date,end_date,from_table,start_date,end_date
   );
 
@@ -153,10 +147,7 @@ BEGIN
         EXCEPT (user_pseudo_id,variant_id)
     FROM
       exp_data
-    LEFT JOIN
-      events_data
-    USING 
-      (user_pseudo_id)
+    LEFT JOIN events_data USING (user_pseudo_id)
     """,from_table,experiment_id,start_date,end_date,from_table,start_date,end_date
   );
 
