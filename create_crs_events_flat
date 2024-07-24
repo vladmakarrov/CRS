@@ -2,13 +2,13 @@
 BEGIN
   --DECLARE start_date DATE DEFAULT DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY); -- << UNCOMMENT IF NEEDED
   --DECLARE end_date DATE DEFAULT DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY); -- << UNCOMMENT IF NEEDED
-  DECLARE start_date DATE DEFAULT '2023-10-01'; -- << EDIT HERE
-  DECLARE end_date DATE DEFAULT '2023-11-20'; -- << EDIT HERE
+  DECLARE start_date DATE DEFAULT '2024-07-01'; -- << EDIT HERE
+  DECLARE end_date DATE DEFAULT '2024-07-20'; -- << EDIT HERE
 
   CREATE OR REPLACE TABLE `social-boost-website.crs_data.crs_events_flat` -- << EDIT HERE
     PARTITION BY date
     OPTIONS(
-      description="Daily flat table FROM 2023-10-01" -- << EDIT HERE
+      description="Daily flat table FROM 2024-07-01" -- << EDIT HERE
   ) AS
 
   --INSERT INTO `social-boost-website.crs_data.crs_events_flat` -- << EDIT HERE
