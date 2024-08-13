@@ -115,11 +115,53 @@ BEGIN
         (select value.string_value from unnest(event_params) where key = 'ecomm_totalvalue') as ecomm_totalvalue,
         (select value.string_value from unnest(event_params) where key = 'coupon') as coupon,
         (select value.int_value from unnest(event_params) where key = 'tax') as tax,
-        (select value.double_value from unnest(event_params) where key = 'value') as event_value,
+        case 
+          when (select value.string_value from unnest(event_params) where key = 'value') is not null 
+            then (select value.string_value from unnest(event_params) where key = 'value') 
+          when (select value.double_value from unnest(event_params) where key = 'value') is not null 
+            then CAST((select value.double_value from unnest(event_params) where key = 'value') AS STRING)
+          when (select value.int_value from unnest(event_params) where key = 'value') is not null 
+            then CAST((select value.int_value from unnest(event_params) where key = 'value')AS STRING)
+          when (select value.float_value from unnest(event_params) where key = 'value') is not null 
+            then CAST((select value.float_value from unnest(event_params) where key = 'value')AS STRING)
+        end as event_value,
         (select value.string_value from unnest(event_params) where key = 'shipping') as shipping,
         (select value.string_value from unnest(event_params) where key = 'shipping_tier') as shipping_tier,
         (select value.string_value from unnest(event_params) where key = 'payment_type') as payment_type,
         (select value.string_value from unnest(event_params) where key = 'currency') as currency,
+        collected_traffic_source.manual_campaign_id,
+        collected_traffic_source.manual_campaign_name, 
+        collected_traffic_source.manual_source, 
+        collected_traffic_source.manual_medium,
+        concat (collected_traffic_source.manual_source, ' / ', case when collected_traffic_source.manual_medium is not null then collected_traffic_source.manual_medium else '(none)' end) as manual_source_medium, 
+        collected_traffic_source.manual_term, 
+        collected_traffic_source.manual_content, 
+        collected_traffic_source.manual_source_platform, 
+        collected_traffic_source.manual_creative_format, 
+        collected_traffic_source.manual_marketing_tactic, 
+        collected_traffic_source.gclid as manual_gclid, 
+        collected_traffic_source.dclid as manual_dclid, 
+        collected_traffic_source.srsltid as manual_srsltid,
+        is_active_user,
+        batch_event_index, 
+        batch_page_id, 
+        batch_ordering_id, 
+        session_traffic_source_last_click.manual_campaign.campaign_id as session_traffic_source_last_click_manual_campaign_campaign_id, 
+        session_traffic_source_last_click.manual_campaign.campaign_name as session_traffic_source_last_click_manual_campaign_campaign_name, 
+        session_traffic_source_last_click.manual_campaign.source as session_traffic_source_last_click_manual_campaign_source, 
+        session_traffic_source_last_click.manual_campaign.medium as session_traffic_source_last_click_manual_campaign_medium,
+        concat (session_traffic_source_last_click.manual_campaign.source, ' / ', case when session_traffic_source_last_click.manual_campaign.medium is not null then session_traffic_source_last_click.manual_campaign.medium else '(none)' end) as session_traffic_source_last_click_manual_campaign_source_medium,  
+        session_traffic_source_last_click.manual_campaign.term as session_traffic_source_last_click_manual_campaign_term, 
+        session_traffic_source_last_click.manual_campaign.content as session_traffic_source_last_click_manual_campaign_content, 
+        session_traffic_source_last_click.manual_campaign.source_platform as session_traffic_source_last_click_manual_campaign_source_platform, 
+        session_traffic_source_last_click.manual_campaign.creative_format as session_traffic_source_last_click_manual_campaign_creative_format, 
+        session_traffic_source_last_click.manual_campaign.marketing_tactic as session_traffic_source_last_click_manual_campaign_marketing_tactic, 
+        session_traffic_source_last_click.google_ads_campaign.customer_id as session_traffic_source_last_click_google_ads_campaign_customer_id, 
+        session_traffic_source_last_click.google_ads_campaign.account_name as session_traffic_source_last_click_google_ads_campaign_account_name, 
+        session_traffic_source_last_click.google_ads_campaign.campaign_id session_traffic_source_last_click_google_ads_campaign_campaign_id, 
+        session_traffic_source_last_click.google_ads_campaign.campaign_name as session_traffic_source_last_click_google_ads_campaign_campaign_name, 
+        session_traffic_source_last_click.google_ads_campaign.ad_group_id as session_traffic_source_last_click_google_ads_campaign_ad_group_id, 
+        session_traffic_source_last_click.google_ads_campaign.ad_group_name as session_traffic_source_last_click_google_ads_campaign_ad_group_name,
         concat(user_pseudo_id,event_timestamp,event_name) as join_key,
     FROM `social-boost-website.analytics_262867194.events_*` -- << EDIT HERE
     WHERE _table_suffix BETWEEN FORMAT_DATE("%Y%m%d", start_date) AND FORMAT_DATE("%Y%m%d",end_date)
@@ -177,18 +219,3 @@ BEGIN
   FROM events_data
   LEFT JOIN ecommerce_data USING (join_key);
 END
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
