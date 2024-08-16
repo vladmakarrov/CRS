@@ -170,7 +170,7 @@ BEGIN
               browser,
               user_type,
               user_source_medium,
-              user_pseudo_id as total_users,
+              user_pseudo_id,
               concat(user_pseudo_id,ga_session_id) as join_key,
           FROM `%t`
         ),
