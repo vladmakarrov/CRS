@@ -57,7 +57,7 @@ BEGIN
         FROM
           `%t` 
         WHERE
-          REGEXP_CONTAINS (variant_id,'%t')
+          REGEXP_CONTAINS (variant_id,'%t') AND NOT REGEXP_CONTAINS (variant_id,'_null')
           AND date between '%t' and '%t'
       ),
 
@@ -93,7 +93,7 @@ BEGIN
         FROM
           `%t` 
         WHERE
-          REGEXP_CONTAINS (variant_id,'%t')
+          REGEXP_CONTAINS (variant_id,'%t') AND NOT REGEXP_CONTAINS (variant_id,'_null')
           AND date between '%t' and '%t'
       ),
 
@@ -127,7 +127,7 @@ BEGIN
         FROM
           `%t` 
         WHERE
-          REGEXP_CONTAINS (variant_id,'%t')
+          REGEXP_CONTAINS (variant_id,'%t') AND NOT REGEXP_CONTAINS (variant_id,'_null')
           AND date between '%t' and '%t'
       ),
 
