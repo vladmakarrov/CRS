@@ -171,6 +171,7 @@ BEGIN
               user_type,
               user_source_medium,
               user_pseudo_id,
+              user_pseudo_id as total_users,
               concat(user_pseudo_id,ga_session_id) as join_key,
           FROM `%t`
         ),
