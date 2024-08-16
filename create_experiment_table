@@ -8,27 +8,28 @@ BEGIN
   DECLARE from_table STRING DEFAULT 'arcane-mission-390005.crs_data.crs_events_flat';
 --------------------------------------------------------------------------------------------------
 -- 3. Destination Table
-  DECLARE destination_table STRING DEFAULT 'arcane-mission-390005.crs_experiments_data.qpDk4XUoeQ';
+  DECLARE destination_table STRING DEFAULT 'arcane-mission-390005.crs_experiments_data.IGYtfyeof7';
 --------------------------------------------------------------------------------------------------
 -- 4. ENTER Experiment ID (Only experiment ID, without variation ID)
-  DECLARE experiment_id STRING DEFAULT 'qpDk4XUoeQ';
+  DECLARE experiment_id STRING DEFAULT 'IGYtfyeof7';
 --------------------------------------------------------------------------------------------------
 -- 5. Table description needed if you want to CREATE table
-  DECLARE table_description STRING DEFAULT 'NatPat: BuzzPatch - Exp: AOV hypothesis';
+  DECLARE table_description STRING DEFAULT 'NatPat - Exp: Homepage (v3)';
 --------------------------------------------------------------------------------------------------
 -- 6. ENTER START and END date.
-  --DECLARE start_date DATE DEFAULT DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY);
-  DECLARE start_date DATE DEFAULT '2024-02-29';
+  DECLARE start_date DATE DEFAULT '2024-08-13';
   DECLARE end_date DATE DEFAULT DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY); 
-  --DECLARE end_date DATE DEFAULT '2024-02-20'; -- IF Exp running THEN -2 days from today
+  --DECLARE end_date DATE DEFAULT '2024-08-14';
 --------------------------------------------------------------------------------------------------
 -- 7. CLOSED FUNNEL.
   DECLARE use_closed_funnel BOOL DEFAULT TRUE; -- << ENTER 'TRUE' or 'FALSE'
   -- SET STEP CONDITION
   DECLARE step_conditions ARRAY<STRING> DEFAULT
-  [ "event_name = 'proceed_to_checkout' AND content_group = 'Buzz Patch'",
-    "event_name = 'begin_checkout' AND REGEXP_CONTAINS(items.item_name, 'Mosquito Patches for Kids')",
-    "event_name = 'purchase' AND NOT transaction_id = '(not set)' AND REGEXP_CONTAINS(items.item_name, 'Mosquito Patches for Kids')"
+  [ "REGEXP_CONTAINS(page_path, '/collections/')",
+    "event_name = 'view_item'",
+    "event_name = 'add_to_cart'",
+    "event_name = 'begin_checkout'",
+    "event_name = 'purchase'AND transaction_id is not null"
   ];
 
 
@@ -44,40 +45,44 @@ BEGIN
   SET query_create = FORMAT(
     """
     CREATE OR REPLACE TABLE `%t`
-      PARTITION BY date
-      OPTIONS(
-        description='%t'
+    PARTITION BY date
+    OPTIONS(
+      description='%t'
     ) AS
 
     WITH
       exp_data AS (
         SELECT DISTINCT 
           user_pseudo_id,
-          variant_id
-        FROM
-          `%t` 
-        WHERE
-          REGEXP_CONTAINS (variant_id,'%t') AND NOT REGEXP_CONTAINS (variant_id,'_null')
-          AND date between '%t' and '%t'
+          variant_id,
+          ROW_NUMBER() OVER (PARTITION BY user_pseudo_id ORDER BY user_pseudo_id desc) as row_number
+        FROM `%t` 
+        WHERE REGEXP_CONTAINS (variant_id,'%t') AND NOT REGEXP_CONTAINS (variant_id,'_null')
+        AND date between '%t' and '%t'
+        GROUP BY 1,2
       ),
-
+      excluded_users as (
+        SELECT
+          user_pseudo_id
+        FROM exp_data
+        WHERE row_number = 2
+      ),
       events_data AS (
         SELECT
           *
-        FROM
-          `%t` 
+        FROM `%t` 
         WHERE date between '%t' and '%t'
-          AND NOT REGEXP_CONTAINS(event_name, 'experiment_impression|new_experiment_start|experience_impression|version_initiation')
+        AND NOT REGEXP_CONTAINS(event_name, 'experiment_impression|new_experiment_start|experience_impression|version_initiation')
       )
-
     SELECT
         exp_data.user_pseudo_id as user_pseudo_id,
         exp_data.variant_id as experiment_variation,
         events_data.*
         EXCEPT (user_pseudo_id,variant_id)
-    FROM
-      exp_data
+    FROM exp_data
     LEFT JOIN events_data USING (user_pseudo_id)
+    LEFT JOIN excluded_users ON exp_data.user_pseudo_id = excluded_users.user_pseudo_id
+    WHERE excluded_users.user_pseudo_id IS NULL
     """,destination_table,table_description,from_table,experiment_id,start_date,end_date,from_table,start_date,end_date
   );
 
@@ -89,31 +94,35 @@ BEGIN
       exp_data AS (
         SELECT DISTINCT 
           user_pseudo_id,
-          variant_id
-        FROM
-          `%t` 
-        WHERE
-          REGEXP_CONTAINS (variant_id,'%t') AND NOT REGEXP_CONTAINS (variant_id,'_null')
-          AND date between '%t' and '%t'
+          variant_id,
+          ROW_NUMBER() OVER (PARTITION BY user_pseudo_id ORDER BY user_pseudo_id desc) as row_number
+        FROM `%t` 
+        WHERE REGEXP_CONTAINS (variant_id,'%t') AND NOT REGEXP_CONTAINS (variant_id,'_null')
+        AND date between '%t' and '%t'
+        GROUP BY 1,2
       ),
-
+      excluded_users as (
+        SELECT
+          user_pseudo_id
+        FROM exp_data
+        WHERE row_number = 2
+      ),
       events_data AS (
         SELECT
           *
-        FROM
-          `%t` 
+        FROM `%t` 
         WHERE date between '%t' and '%t'
-          AND NOT REGEXP_CONTAINS(event_name, 'experiment_impression|new_experiment_start|experience_impression|version_initiation')
+        AND NOT REGEXP_CONTAINS(event_name, 'experiment_impression|new_experiment_start|experience_impression|version_initiation')
       )
-
     SELECT
         exp_data.user_pseudo_id as user_pseudo_id,
         exp_data.variant_id as experiment_variation,
         events_data.*
         EXCEPT (user_pseudo_id,variant_id)
-    FROM
-      exp_data
+    FROM exp_data
     LEFT JOIN events_data USING (user_pseudo_id)
+    LEFT JOIN excluded_users ON exp_data.user_pseudo_id = excluded_users.user_pseudo_id
+    WHERE excluded_users.user_pseudo_id IS NULL
     """,destination_table,from_table,experiment_id,start_date,end_date,from_table,start_date,end_date
   );
 
@@ -123,31 +132,35 @@ BEGIN
       exp_data AS (
         SELECT DISTINCT 
           user_pseudo_id,
-          variant_id
-        FROM
-          `%t` 
-        WHERE
-          REGEXP_CONTAINS (variant_id,'%t') AND NOT REGEXP_CONTAINS (variant_id,'_null')
-          AND date between '%t' and '%t'
+          variant_id,
+          ROW_NUMBER() OVER (PARTITION BY user_pseudo_id ORDER BY user_pseudo_id desc) as row_number
+        FROM `%t` 
+        WHERE REGEXP_CONTAINS (variant_id,'%t') AND NOT REGEXP_CONTAINS (variant_id,'_null')
+        AND date between '%t' and '%t'
+        GROUP BY 1,2
       ),
-
+      excluded_users as (
+        SELECT
+          user_pseudo_id
+        FROM exp_data
+        WHERE row_number = 2
+      ),
       events_data AS (
         SELECT
           *
-        FROM
-          `%t` 
+        FROM `%t` 
         WHERE date between '%t' and '%t'
-          AND NOT REGEXP_CONTAINS(event_name, 'experiment_impression|new_experiment_start|experience_impression|version_initiation')
+        AND NOT REGEXP_CONTAINS(event_name, 'experiment_impression|new_experiment_start|experience_impression|version_initiation')
       )
-
     SELECT
         exp_data.user_pseudo_id as user_pseudo_id,
         exp_data.variant_id as experiment_variation,
         events_data.*
         EXCEPT (user_pseudo_id,variant_id)
-    FROM
-      exp_data
+    FROM exp_data
     LEFT JOIN events_data USING (user_pseudo_id)
+    LEFT JOIN excluded_users ON exp_data.user_pseudo_id = excluded_users.user_pseudo_id
+    WHERE excluded_users.user_pseudo_id IS NULL
     """,from_table,experiment_id,start_date,end_date,from_table,start_date,end_date
   );
 
@@ -155,9 +168,9 @@ BEGIN
   SET query_closed_funnel = FORMAT (
     """
       CREATE OR REPLACE TABLE `%t_closed`
-        PARTITION BY date
-        OPTIONS(
-          description='%t'
+      PARTITION BY date
+      OPTIONS(
+        description='%t'
       ) AS
 
       WITH 
